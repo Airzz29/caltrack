@@ -54,21 +54,24 @@ export default function AdminUsersPage() {
     status: 'approved' | 'rejected'
   ) {
     setActionLoading(userId);
-    const res = await fetch(`/api/admin/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, status } : u))
-      );
-      toastCtx?.toast(
-        status === 'approved' ? '✓ User approved' : 'User rejected',
-        status === 'approved' ? 'success' : 'error'
-      );
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        const refreshRes = await fetch('/api/admin/users');
+        const refreshData = await refreshRes.json();
+        setUsers(refreshData.users ?? []);
+        toastCtx?.toast(
+          status === 'approved' ? '✓ User approved' : 'User rejected',
+          status === 'approved' ? 'success' : 'error'
+        );
+      }
+    } finally {
+      setActionLoading(null);
     }
-    setActionLoading(null);
   }
 
   const pending = users.filter((u) => u.status === 'pending').length;

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
       FROM users u
       LEFT JOIN user_profiles p ON p.user_id = u.id
       LEFT JOIN ai_usage_log a ON a.user_id = u.id
-      WHERE u.role = 'user'
+      WHERE (u.role = 'user' OR u.role IS NULL)
       GROUP BY u.id, p.display_name, p.goal_type
       ORDER BY 
         CASE u.status WHEN 'pending' THEN 0

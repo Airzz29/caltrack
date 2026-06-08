@@ -9,8 +9,10 @@ import {
   Plus,
   Trash2,
   X,
+  ChevronRight,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import ConfirmCard from '@/components/log/ConfirmCard';
 import { cn } from '@/lib/utils';
 
 interface FoodScoutResult {
@@ -65,6 +67,28 @@ export default function FoodsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const createScrollRef = useRef<HTMLDivElement>(null);
+
+  const [createStage, setCreateStage] = useState<'idle' | 'chat' | 'confirm'>(
+    'idle'
+  );
+  const [createMessages, setCreateMessages] = useState<ChatMessage[]>([]);
+  const [createInput, setCreateInput] = useState('');
+  const [createResult, setCreateResult] = useState<{
+    food_name: string;
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+    serving_size: string;
+  } | null>(null);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createCalories, setCreateCalories] = useState(0);
+  const [createProtein, setCreateProtein] = useState(0);
+  const [createCarbs, setCreateCarbs] = useState(0);
+  const [createFat, setCreateFat] = useState(0);
+  const [savingCreate, setSavingCreate] = useState(false);
 
   const portion = useMemo(() => {
     if (!scoutResult) return null;
@@ -77,19 +101,20 @@ export default function FoodsPage() {
     };
   }, [scoutResult, chosenGrams]);
 
-  useEffect(() => {
-    async function loadSavedFoods() {
-      setSavedFoodsLoading(true);
-      try {
-        const res = await fetch('/api/saved-foods');
-        const data = await res.json();
-        if (res.ok) setSavedFoods(data.foods);
-      } catch {
-        // ignore
-      } finally {
-        setSavedFoodsLoading(false);
-      }
+  async function loadSavedFoods() {
+    setSavedFoodsLoading(true);
+    try {
+      const res = await fetch('/api/saved-foods');
+      const data = await res.json();
+      if (res.ok) setSavedFoods(data.foods);
+    } catch {
+      // ignore
+    } finally {
+      setSavedFoodsLoading(false);
     }
+  }
+
+  useEffect(() => {
     loadSavedFoods();
   }, []);
 
@@ -99,6 +124,13 @@ export default function FoodsPage() {
       behavior: 'smooth',
     });
   }, [chatMessages, chatLoading]);
+
+  useEffect(() => {
+    createScrollRef.current?.scrollTo({
+      top: createScrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [createMessages, createLoading]);
 
   function reset() {
     setScoutStage('idle');
@@ -214,6 +246,86 @@ export default function FoodsPage() {
       }
     };
     reader.readAsDataURL(file);
+  }
+
+  function openCreateChat() {
+    setCreateStage('chat');
+    setCreateMessages([
+      {
+        role: 'ai',
+        text: "What food or meal do you want to save? Describe the ingredients and amounts and I'll calculate the nutrition for you. 🍽️",
+      },
+    ]);
+  }
+
+  async function handleCreateSend() {
+    if (!createInput.trim() || createLoading) return;
+
+    const msg = createInput.trim();
+    setCreateInput('');
+    setCreateMessages((prev) => [...prev, { role: 'user', text: msg }]);
+    setCreateLoading(true);
+
+    try {
+      const res = await fetch('/api/ai/create-food', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          history: createMessages,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.result) {
+        setCreateResult(data.result);
+        setCreateName(data.result.food_name);
+        setCreateCalories(data.result.calories);
+        setCreateProtein(data.result.protein_g);
+        setCreateCarbs(data.result.carbs_g);
+        setCreateFat(data.result.fat_g);
+        setCreateMessages((prev) => [
+          ...prev,
+          { role: 'ai', text: data.reply },
+        ]);
+        setTimeout(() => setCreateStage('confirm'), 400);
+      } else if (res.ok) {
+        setCreateMessages((prev) => [
+          ...prev,
+          { role: 'ai', text: data.reply },
+        ]);
+      }
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
+  async function handleSaveCreated() {
+    setSavingCreate(true);
+    try {
+      const res = await fetch('/api/saved-foods', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          food_name: createName,
+          calories: createCalories,
+          protein_g: createProtein,
+          carbs_g: createCarbs,
+          fat_g: createFat,
+          default_serving: createResult?.serving_size ?? '1 serving',
+        }),
+      });
+
+      if (res.ok) {
+        toastCtx?.toast('Food saved ✓', 'success');
+        await loadSavedFoods();
+        setCreateStage('idle');
+        setCreateMessages([]);
+        setCreateResult(null);
+      }
+    } finally {
+      setSavingCreate(false);
+    }
   }
 
   async function handleChatSend() {
@@ -835,6 +947,222 @@ export default function FoodsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <div style={{ animation: 'fadeUp 0.4s var(--ease-ios) 0.15s both' }}>
+          <p className="text-[9px] font-bold tracking-[0.24em] uppercase text-muted mb-2.5 flex items-center gap-2">
+            Create Food
+            <span className="flex-1 h-px bg-[var(--border)]" />
+          </p>
+
+          <AnimatePresence mode="wait">
+            {createStage === 'idle' && (
+              <motion.button
+                key="create-idle"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={openCreateChat}
+                className="w-full rounded-[18px] border px-5 py-4 flex items-center gap-4 text-left transition-all"
+                style={{
+                  background: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+                  style={{
+                    background: 'var(--accent-dim)',
+                    border: '1px solid var(--accent-border)',
+                  }}
+                >
+                  🤖
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-primary">
+                    Create custom food
+                  </p>
+                  <p className="text-xs text-muted mt-0.5">
+                    Describe a meal, AI calculates + saves it
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted" />
+              </motion.button>
+            )}
+
+            {createStage === 'chat' && (
+              <motion.div
+                key="create-chat"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-[22px] border overflow-hidden"
+                style={{
+                  background: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                }}
+              >
+                <div
+                  className="px-4 pt-3 pb-2 border-b flex items-center justify-between"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🤖</span>
+                    <p className="text-xs font-bold text-secondary uppercase tracking-wider">
+                      Create Food
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setCreateStage('idle');
+                      setCreateMessages([]);
+                    }}
+                    className="text-xs text-muted px-2 py-1 rounded-lg active:opacity-70"
+                    style={{ background: 'var(--elevated)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                <div
+                  ref={createScrollRef}
+                  className="flex flex-col gap-2.5 px-4 py-3 max-h-[240px] overflow-y-auto no-scrollbar"
+                >
+                  {createMessages.map((m, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        'max-w-[85%] text-[12.5px] leading-[1.55] px-3.5 py-2.5 rounded-[14px]',
+                        m.role === 'user' ? 'self-end' : 'self-start border'
+                      )}
+                      style={
+                        m.role === 'user'
+                          ? {
+                              background: 'var(--accent)',
+                              color: '#fff',
+                              borderBottomRightRadius: 4,
+                            }
+                          : {
+                              background: 'var(--elevated)',
+                              borderColor: 'var(--border)',
+                              color: 'var(--text-primary)',
+                              borderBottomLeftRadius: 4,
+                            }
+                      }
+                    >
+                      {m.text}
+                    </div>
+                  ))}
+                  {createLoading && (
+                    <div
+                      className="self-start flex gap-1.5 px-3.5 py-3 rounded-[14px] border"
+                      style={{
+                        background: 'var(--elevated)',
+                        borderColor: 'var(--border)',
+                        borderBottomLeftRadius: 4,
+                      }}
+                    >
+                      {[0, 1, 2].map((i) => (
+                        <motion.div
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full"
+                          style={{ background: 'var(--text-muted)' }}
+                          animate={{ scale: [1, 1.5, 1], opacity: [0.4, 1, 0.4] }}
+                          transition={{
+                            duration: 0.9,
+                            repeat: Infinity,
+                            delay: i * 0.18,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className="px-4 pb-4 flex gap-2 border-t pt-3"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <input
+                    value={createInput}
+                    onChange={(e) => setCreateInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateSend()}
+                    className="flex-1 h-10 rounded-[11px] px-3.5 text-sm text-primary outline-none"
+                    style={{
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid var(--border)',
+                    }}
+                    placeholder="e.g. wrap with 100g chicken, lettuce, cheese"
+                  />
+                  <button
+                    onClick={handleCreateSend}
+                    disabled={!createInput.trim() || createLoading}
+                    className="w-10 h-10 rounded-[11px] flex items-center justify-center disabled:opacity-50"
+                    style={{
+                      background: 'var(--accent)',
+                      boxShadow: '0 0 14px var(--accent-glow)',
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <line x1="14" y1="2" x2="2" y2="8" />
+                      <line x1="14" y1="2" x2="8" y2="14" />
+                      <line x1="2" y1="8" x2="8" y2="14" />
+                    </svg>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {createStage === 'confirm' && createResult && (
+              <motion.div
+                key="create-confirm"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-3"
+              >
+                <ConfirmCard
+                  foodName={createName}
+                  calories={createCalories}
+                  proteinG={createProtein}
+                  carbsG={createCarbs}
+                  fatG={createFat}
+                  confidence="medium"
+                  onFoodNameChange={setCreateName}
+                  onCaloriesChange={setCreateCalories}
+                  onProteinChange={setCreateProtein}
+                  onCarbsChange={setCreateCarbs}
+                  onFatChange={setCreateFat}
+                />
+                <button
+                  onClick={handleSaveCreated}
+                  disabled={savingCreate}
+                  className="w-full rounded-[15px] py-4 font-bold text-sm text-white disabled:opacity-50"
+                  style={{
+                    background: 'var(--accent)',
+                    boxShadow: '0 0 28px var(--accent-glow)',
+                  }}
+                >
+                  {savingCreate ? 'Saving…' : 'Save to My Foods'}
+                </button>
+                <button
+                  onClick={() => setCreateStage('chat')}
+                  className="w-full py-3 text-sm text-muted"
+                >
+                  ← Edit description
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <div
           style={{ animation: 'fadeUp 0.5s var(--ease-ios) 0.2s both' }}

@@ -81,13 +81,39 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid theme' }, { status: 400 });
     }
 
+    const existingRows = await db`
+      SELECT daily_calories, daily_protein_g, daily_carbs_g, daily_fat_g
+      FROM user_profiles WHERE user_id = ${user.id}
+    `;
+    const existing = existingRows[0] as {
+      daily_calories: number;
+      daily_protein_g: number;
+      daily_carbs_g: number;
+      daily_fat_g: number;
+    };
+
+    const calories =
+      daily_calories !== undefined
+        ? parseInt(String(daily_calories), 10)
+        : undefined;
+    const protein =
+      daily_protein_g !== undefined
+        ? parseInt(String(daily_protein_g), 10)
+        : undefined;
+    const carbs =
+      daily_carbs_g !== undefined
+        ? parseInt(String(daily_carbs_g), 10)
+        : undefined;
+    const fat =
+      daily_fat_g !== undefined ? parseInt(String(daily_fat_g), 10) : undefined;
+
     await db`
       UPDATE user_profiles SET
         display_name = COALESCE(${display_name ?? null}, display_name),
-        daily_calories = COALESCE(${daily_calories ?? null}, daily_calories),
-        daily_protein_g = COALESCE(${daily_protein_g ?? null}, daily_protein_g),
-        daily_carbs_g = COALESCE(${daily_carbs_g ?? null}, daily_carbs_g),
-        daily_fat_g = COALESCE(${daily_fat_g ?? null}, daily_fat_g),
+        daily_calories = ${calories ?? existing?.daily_calories ?? null},
+        daily_protein_g = ${protein ?? existing?.daily_protein_g ?? null},
+        daily_carbs_g = ${carbs ?? existing?.daily_carbs_g ?? null},
+        daily_fat_g = ${fat ?? existing?.daily_fat_g ?? null},
         daily_fiber_g = COALESCE(${daily_fiber_g ?? null}, daily_fiber_g),
         goal_weight_kg = COALESCE(${goal_weight_kg ?? null}, goal_weight_kg),
         current_weight_kg = COALESCE(${current_weight_kg ?? null}, current_weight_kg),

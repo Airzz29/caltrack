@@ -28,6 +28,10 @@ export const metadata: Metadata = {
   title: 'CalTrack',
   description: 'Your personal calorie & nutrition tracker',
   manifest: '/manifest.json',
+  icons: {
+    apple: '/icons/logo.png',
+    icon: '/icons/logo.png',
+  },
 };
 
 export const viewport: Viewport = {

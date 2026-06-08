@@ -48,6 +48,24 @@ export default function CoachPage() {
   const [profile, setProfile] = useState<{ display_name: string } | null>(null);
   const [memory, setMemory] = useState<string[]>([]);
   const [showMemory, setShowMemory] = useState(false);
+  const [inputBottom, setInputBottom] = useState(96);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handler = () => {
+      const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+      setInputBottom(Math.max(96, keyboardHeight + 8));
+    };
+
+    vv.addEventListener('resize', handler);
+    vv.addEventListener('scroll', handler);
+    return () => {
+      vv.removeEventListener('resize', handler);
+      vv.removeEventListener('scroll', handler);
+    };
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({
@@ -284,7 +302,7 @@ export default function CoachPage() {
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto no-scrollbar px-5"
-        style={{ paddingBottom: 140 }}
+        style={{ paddingBottom: inputBottom + 60 }}
       >
         {loading ? (
           <div className="flex justify-center py-16">
@@ -450,7 +468,7 @@ export default function CoachPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
         className="fixed left-0 right-0 px-4"
-        style={{ bottom: 96, maxWidth: 430, margin: '0 auto', zIndex: 10 }}
+        style={{ bottom: inputBottom, maxWidth: 430, margin: '0 auto', zIndex: 10 }}
       >
         <div
           className="flex gap-2 p-2 rounded-[20px]"

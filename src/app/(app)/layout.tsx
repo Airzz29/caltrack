@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, startTransition } from 'react';
+import { usePathname } from 'next/navigation';
 import Atmosphere from '@/components/Atmosphere';
 import BottomNav from '@/components/nav/BottomNav';
 import LogMethodSheet, {
@@ -17,6 +18,7 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [logOpen, setLogOpen] = useState(false);
   const [activeMethod, setActiveMethod] = useState<LogMethod | null>(null);
 
@@ -44,7 +46,7 @@ export default function AppLayout({
     <div className="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative">
       <Atmosphere />
       <main
-        className="flex-1 pb-28 overflow-y-auto no-scrollbar relative"
+        className={`flex-1 overflow-y-auto no-scrollbar relative ${pathname === '/coach' ? '' : 'pb-24'}`}
         style={{ zIndex: 2 }}
       >
         {children}

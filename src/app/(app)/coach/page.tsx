@@ -48,24 +48,6 @@ export default function CoachPage() {
   const [profile, setProfile] = useState<{ display_name: string } | null>(null);
   const [memory, setMemory] = useState<string[]>([]);
   const [showMemory, setShowMemory] = useState(false);
-  const [inputBottom, setInputBottom] = useState(96);
-
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-
-    const handler = () => {
-      const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
-      setInputBottom(Math.max(96, keyboardHeight + 8));
-    };
-
-    vv.addEventListener('resize', handler);
-    vv.addEventListener('scroll', handler);
-    return () => {
-      vv.removeEventListener('resize', handler);
-      vv.removeEventListener('scroll', handler);
-    };
-  }, []);
 
   const scrollToBottom = useCallback(() => {
     scrollRef.current?.scrollTo({
@@ -229,7 +211,10 @@ export default function CoachPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative" style={{ zIndex: 2 }}>
+    <div
+      className="flex flex-col relative"
+      style={{ height: '100dvh', paddingBottom: '88px' }}
+    >
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -302,7 +287,7 @@ export default function CoachPage() {
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto no-scrollbar px-5"
-        style={{ paddingBottom: inputBottom + 60 }}
+        style={{ paddingBottom: 16 }}
       >
         {loading ? (
           <div className="flex justify-center py-16">
@@ -463,23 +448,16 @@ export default function CoachPage() {
         )}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
-        className="fixed left-0 right-0 px-4"
-        style={{ bottom: inputBottom, maxWidth: 430, margin: '0 auto', zIndex: 10 }}
+      <div
+        className="flex-shrink-0 px-4 pb-3 pt-2"
+        style={{
+          background: 'rgba(7,7,13,0.95)',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          borderTop: '1px solid var(--border)',
+        }}
       >
-        <div
-          className="flex gap-2 p-2 rounded-[20px]"
-          style={{
-            background: 'rgba(10,10,14,0.92)',
-            backdropFilter: 'blur(28px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-            border: '1px solid var(--border)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-          }}
-        >
+        <div className="flex gap-2 p-2">
           <input
             ref={inputRef}
             value={input}
@@ -504,7 +482,7 @@ export default function CoachPage() {
             <Send className="w-4 h-4 text-white" />
           </motion.button>
         </div>
-      </motion.div>
+      </div>
 
       <AnimatePresence>
         {showHistory && (
@@ -515,7 +493,7 @@ export default function CoachPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowHistory(false)}
-              className="fixed inset-0 z-[200]"
+              className="fixed inset-0 z-[300]"
               style={{
                 background: 'rgba(0,0,0,0.6)',
                 backdropFilter: 'blur(8px)',
@@ -527,7 +505,7 @@ export default function CoachPage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
-              className="fixed bottom-0 left-0 right-0 z-[201] max-w-[430px] mx-auto rounded-t-[28px]"
+              className="fixed bottom-0 left-0 right-0 z-[301] max-w-[430px] mx-auto rounded-t-[28px]"
               style={{
                 background: '#131318',
                 border: '1px solid var(--border)',
@@ -556,7 +534,9 @@ export default function CoachPage() {
 
                 <div
                   className="flex-1 overflow-y-auto no-scrollbar space-y-2"
-                  style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                  style={{
+                    paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+                  }}
                 >
                   {chats.length === 0 ? (
                     <p className="text-sm text-muted text-center py-8">
@@ -635,7 +615,7 @@ export default function CoachPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMemory(false)}
-              className="fixed inset-0 z-[200]"
+              className="fixed inset-0 z-[300]"
               style={{
                 background: 'rgba(0,0,0,0.6)',
                 backdropFilter: 'blur(8px)',
@@ -647,14 +627,21 @@ export default function CoachPage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
-              className="fixed bottom-0 left-0 right-0 z-[201] max-w-[430px] mx-auto rounded-t-[28px]"
+              className="fixed bottom-0 left-0 right-0 z-[301] max-w-[430px] mx-auto rounded-t-[28px]"
               style={{
                 background: '#131318',
                 border: '1px solid var(--border)',
                 borderBottom: 'none',
+                maxHeight: '75vh',
               }}
             >
-              <div className="px-6 pt-3 pb-8">
+              <div
+                className="px-6 pt-3 overflow-y-auto no-scrollbar"
+                style={{
+                  paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
+                  maxHeight: '75vh',
+                }}
+              >
                 <div className="w-9 h-1 rounded-full bg-white/10 mx-auto mb-5" />
                 <div className="flex items-center gap-2 mb-4">
                   <Brain
